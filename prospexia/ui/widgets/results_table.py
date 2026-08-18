@@ -11,6 +11,30 @@ from prospexia.ui import theme
 COLS = ["Entreprise", "Secteur", "Ville", "Téléphone", "Site web", "État du site", "Score", "Verdict", "Opportunité", "Identifiant"]
 COL_SCORE, COL_VERDICT, COL_STATUS = 6, 7, 5
 
+VERDICT_HELP = {
+    Verdict.PRIORITY: ("Cible idéale : pas de site web propre (aucun site, page Facebook seule, fiche "
+                       "Planity/PagesJaunes ou site hors service) ET présence en ligne quasi nulle. "
+                       "À contacter en premier."),
+    Verdict.TARGET: ("Bon prospect : site absent, obsolète ou HS, mais déjà un peu de présence en ligne "
+                     "(réseaux sociaux, avis, résultats web)."),
+    Verdict.OUT: ("Pas un prospect : site fonctionnel et moderne, ou présence en ligne déjà solide. "
+                  "Masqué par défaut (case « Afficher les hors cible »)."),
+}
+HEADER_HELP = {
+    COL_STATUS: ("État du site déclaré :\n• Aucun site\n• Réseau social seul (page Facebook/Instagram)\n"
+                 "• Plateforme tierce seule (fiche Planity, PagesJaunes, WhatsApp…)\n"
+                 "• Site HS (injoignable, erreur)\n• Site obsolète (pas de HTTPS, non mobile, vieux copyright…)\n"
+                 "• Site OK (fonctionnel et moderne)"),
+    COL_SCORE: ("Score de présence en ligne, de 0 (invisible) à 100 (très présent).\n"
+                "Additionne : état du site, réseaux sociaux trouvés, résultats web sur le nom, "
+                "annuaires, avis Google.\nVert ≤ 25 · Orange ≤ 50 · Rouge au-delà."),
+    COL_VERDICT: ("Conclusion de l'analyse :\n🟢 Prioritaire — pas de site propre + quasi invisible en ligne\n"
+                  "🟡 Cible — site absent/obsolète/HS + présence faible\n"
+                  "⚪ Hors cible — site OK ou présence déjà solide\n\n"
+                  "Les seuils dépendent du mode (Strict / Flexible). Survolez une cellule pour le détail."),
+    8: "Prestation à proposer, déduite de l'état du site : création, refonte + SEO, ou SEO seul.",
+}
+
 
 class ProspectModel(QAbstractTableModel):
     def __init__(self):
@@ -49,6 +73,11 @@ class ProspectModel(QAbstractTableModel):
         if role == Qt.ItemDataRole.UserRole:
             return p
         if role == Qt.ItemDataRole.ToolTipRole:
+            if c == COL_VERDICT:
+                return (f"<b>{p.verdict.label}</b> — {VERDICT_HELP[p.verdict]}<br><br>"
+                        f"<b>Pourquoi :</b><br>• " + "<br>• ".join(p.reasons))
+            if c == COL_SCORE:
+                return f"<b>Score {p.score}/100</b><br>• " + "<br>• ".join(p.reasons)
             return " · ".join(p.reasons)
         if role == Qt.ItemDataRole.ForegroundRole:
             if c == COL_STATUS:

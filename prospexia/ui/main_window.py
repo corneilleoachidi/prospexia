@@ -38,7 +38,7 @@ from prospexia.data.countries import COUNTRIES, COUNTRY_BY_CODE
 from prospexia.ui import theme
 from prospexia.ui.widgets.common import Badge, StatCard, section_label
 from prospexia.ui.widgets.dialogs import ProspectDialog, SettingsDialog
-from prospexia.ui.widgets.results_table import ResultsTable
+from prospexia.ui.widgets.results_table import VERDICT_HELP, ResultsTable
 from prospexia.ui.widgets.sector_picker import SectorPicker
 from prospexia.ui.worker import PipelineWorker
 
@@ -179,7 +179,15 @@ class MainWindow(QMainWindow):
         self.filter.setClearButtonEnabled(True); self.filter.setMaximumWidth(340)
         self.show_out = QCheckBox("Afficher les hors cible")
         self.count_label = QLabel(""); self.count_label.setObjectName("Hint")
-        tools.addWidget(self.filter); tools.addWidget(self.show_out); tools.addStretch(); tools.addWidget(self.count_label)
+        tools.addWidget(self.filter); tools.addWidget(self.show_out); tools.addStretch()
+        for verdict in (Verdict.PRIORITY, Verdict.TARGET, Verdict.OUT):
+            b = Badge(verdict.label, theme.VERDICT_COLORS[verdict.value])
+            b.setToolTip(VERDICT_HELP[verdict]); b.setCursor(Qt.CursorShape.WhatsThisCursor)
+            tools.addWidget(b)
+        help_btn = QPushButton("?"); help_btn.setObjectName("Pill"); help_btn.setFixedWidth(28)
+        help_btn.setToolTip("Comprendre les verdicts et le score"); help_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        help_btn.clicked.connect(self._show_help)
+        tools.addWidget(help_btn); tools.addSpacing(8); tools.addWidget(self.count_label)
         lay.addLayout(tools)
 
         self.table = ResultsTable()
@@ -324,6 +332,24 @@ class MainWindow(QMainWindow):
         self.count_label.setText(f"{self.table.proxy.rowCount()} ligne(s) affichée(s)")
 
     # ================================================================== actions
+    def _show_help(self) -> None:
+        box = QMessageBox(self); box.setWindowTitle("Verdicts et score")
+        box.setTextFormat(Qt.TextFormat.RichText)
+        box.setText(
+            "<h3 style='margin:0'>Comment lire les résultats</h3>"
+            "<p><b style='color:#22c55e'>Prioritaire</b> — " + VERDICT_HELP[Verdict.PRIORITY] + "</p>"
+            "<p><b style='color:#f59e0b'>Cible</b> — " + VERDICT_HELP[Verdict.TARGET] + "</p>"
+            "<p><b style='color:#8b91a7'>Hors cible</b> — " + VERDICT_HELP[Verdict.OUT] + "</p>"
+            "<p><b>Score de présence (0–100)</b> : 0 = invisible en ligne, 100 = très présent. "
+            "Il additionne l'état du site (0 à 60 pts), les réseaux sociaux trouvés, les résultats web sur le nom, "
+            "les annuaires et les avis Google.</p>"
+            "<p><b>Mode</b> : <i>Strict</i> ne retient que les entreprises sans site propre et quasi invisibles "
+            "(score ≤ 30) ; <i>Flexible</i> accepte aussi les sites obsolètes ou HS et une présence modérée (score ≤ 50).</p>"
+            "<p><b>Opportunité</b> : prestation suggérée — création de site, refonte + SEO, ou SEO seul.</p>"
+            "<p style='color:#8b91a7'>Survolez une cellule Verdict ou Score pour voir le détail du calcul ; "
+            "double-cliquez une ligne pour la fiche complète.</p>")
+        box.exec()
+
     def _open_detail(self, idx: QModelIndex) -> None:
         p = self.table.prospect_at(idx)
         if p:
