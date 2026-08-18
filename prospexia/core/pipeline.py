@@ -8,7 +8,15 @@ from collections.abc import Callable
 import httpx
 
 from prospexia.config import Settings
-from prospexia.core.models import Company, ProgressEvent, Prospect, SearchRequest, Verdict
+from prospexia.core.models import (
+    Company,
+    ProgressEvent,
+    Prospect,
+    SearchRequest,
+    Verdict,
+    WebPresence,
+    WebsiteStatus,
+)
 from prospexia.core.presence import check_website, web_presence
 from prospexia.core.providers import (
     CompanyProvider,
@@ -114,14 +122,19 @@ class Pipeline:
                     async with sem:
                         self._check_cancel()
                         p = Prospect(company=c)
-                        p.presence = await web_presence(client, c, country,
-                                                        self.settings.serpapi_api_key)
-                        if not c.website and p.presence.discovered_website:
-                            c.website = p.presence.discovered_website
-                            p.presence.own_domain_in_results = True
                         p.website = await check_website(client, c.website)
-                        if p.presence.discovered_website:
-                            p.website.issues.insert(0, "Site trouvé via la recherche web")
+                        if p.website.status is WebsiteStatus.OK:
+                            # Site fonctionnel => hors cible quoi qu'il arrive : on économise
+                            # une recherche web (quota SerpAPI) et on passe au suivant.
+                            p.presence = WebPresence(skipped=True)
+                        else:
+                            p.presence = await web_presence(client, c, country,
+                                                            self.settings.serpapi_api_key)
+                            if not c.website and p.presence.discovered_website:
+                                c.website = p.presence.discovered_website
+                                p.presence.own_domain_in_results = True
+                                p.website = await check_website(client, c.website)
+                                p.website.issues.insert(0, "Site trouvé via la recherche web")
                         score_prospect(p, req.mode)
                         return p
 

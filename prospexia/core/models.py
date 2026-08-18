@@ -19,6 +19,7 @@ class WebsiteStatus(StrEnum):
     DEAD = "dead"            # site déclaré mais injoignable (DNS, timeout, 4xx/5xx)
     OBSOLETE = "obsolete"    # site joignable mais visiblement vieillissant / non maintenu
     SOCIAL_ONLY = "social"   # "site" = simple page Facebook/Instagram
+    THIRD_PARTY = "platform" # "site" = fiche annuaire / plateforme de réservation (Planity, PagesJaunes…)
     OK = "ok"                # site fonctionnel et moderne
 
     @property
@@ -28,6 +29,7 @@ class WebsiteStatus(StrEnum):
             "dead": "Site HS",
             "obsolete": "Site obsolète",
             "social": "Réseau social seul",
+            "platform": "Plateforme tierce seule",
             "ok": "Site OK",
         }[self.value]
 
@@ -94,6 +96,7 @@ class WebPresence:
     socials: dict[str, str] = field(default_factory=dict)   # réseau -> URL
     directories: list[str] = field(default_factory=list)    # annuaires (pagesjaunes, yelp…)
     search_engine: str = ""               # "serpapi" | "duckduckgo" | "" (non évalué)
+    skipped: bool = False                 # recherche volontairement ignorée (site déjà OK)
     discovered_website: str = ""          # site trouvé via la recherche alors que le fournisseur n'en listait pas
 
 
@@ -110,7 +113,7 @@ class Prospect:
     def opportunity(self) -> str:
         """Prestation à proposer, déduite du diagnostic."""
         st = self.website.status
-        if st in (WebsiteStatus.NONE, WebsiteStatus.SOCIAL_ONLY, WebsiteStatus.DEAD):
+        if st in (WebsiteStatus.NONE, WebsiteStatus.SOCIAL_ONLY, WebsiteStatus.THIRD_PARTY, WebsiteStatus.DEAD):
             return "Création de site web"
         if st is WebsiteStatus.OBSOLETE:
             return "Refonte de site + SEO"

@@ -3,9 +3,15 @@ import pytest
 from PySide6.QtWidgets import QApplication
 
 from prospexia.config import Settings
-from prospexia.core.models import Company, Prospect, Verdict, WebsiteCheck, WebsiteStatus
+from prospexia.core.models import (
+    Company,
+    Prospect,
+    RelevanceMode,
+    Verdict,
+    WebsiteCheck,
+    WebsiteStatus,
+)
 from prospexia.core.scoring import score_prospect
-from prospexia.core.models import RelevanceMode
 
 
 @pytest.fixture(scope="module")

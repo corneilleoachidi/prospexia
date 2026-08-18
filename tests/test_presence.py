@@ -2,7 +2,13 @@ import httpx
 import pytest
 
 from prospexia.core.models import Company, WebsiteStatus
-from prospexia.core.presence import _domain, _domain_matches, _name_tokens, check_website, web_presence
+from prospexia.core.presence import (
+    _domain,
+    _domain_matches,
+    _name_tokens,
+    check_website,
+    web_presence,
+)
 from prospexia.data.countries import COUNTRY_BY_CODE
 
 NOW_HTML = '<html><head><meta name="viewport" content="width=device-width"><title>Chez Marcel</title></head><body>' + "x" * 3000 + "© 2026</body></html>"
@@ -104,3 +110,22 @@ async def test_osm_provider_parses_jsonv2_and_filters_streets():
         res = await OSMProvider(c).search("Plombier", COUNTRY_BY_CODE["FR"], "Paris", 20)
     assert [r.name for r in res] == ["Artisan Plombier"]
     assert res[0].website == "https://ex.fr" and res[0].city == "Paris"
+
+
+@pytest.mark.parametrize("url", [
+    "https://www.planity.com/holy-cut-33000-bordeaux",
+    "https://www.pagesjaunes.fr/siret/88402891",
+    "https://api.whatsapp.com/message/KC3LB6Q",
+    "https://sites.google.com/view/bc-plomberie/accueil",
+])
+async def test_platform_urls_are_third_party(url):
+    async with _client(lambda r: httpx.Response(200)) as c:
+        chk = await check_website(c, url)
+    assert chk.status is WebsiteStatus.THIRD_PARTY
+
+
+async def test_free_hosting_flagged():
+    html = '<html><head><meta name="viewport"><title>x</title></head><body>' + "x" * 3000 + "</body></html>"
+    async with _client(lambda r: httpx.Response(200, text=html, headers={"content-type": "text/html"})) as c:
+        chk = await check_website(c, "https://ampmotta13.wixsite.com/plombier")
+    assert "Hébergement gratuit / sous-domaine" in chk.issues

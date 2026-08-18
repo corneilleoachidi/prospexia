@@ -32,8 +32,11 @@ Data flow: `SearchRequest` → `core/pipeline.py:Pipeline.run()` (asyncio, one s
    `OSMProvider` as fallback — a `ProviderError` from Google drops it and continues with OSM);
    dedupe with `Company.dedupe_key()`;
 3. **analyze** each company concurrently (semaphore = `Settings.concurrency`): `core/presence.py`
-   `web_presence()` (SerpAPI or DuckDuckGo; may discover a website the provider didn't list) then
-   `check_website()` (HTTP fetch → `WebsiteStatus` NONE/DEAD/OBSOLETE/SOCIAL_ONLY/OK with issue list);
+   `check_website()` first (HTTP fetch → `WebsiteStatus` NONE/DEAD/OBSOLETE/SOCIAL_ONLY/THIRD_PARTY/OK
+   with issue list; THIRD_PARTY = Planity/PagesJaunes/WhatsApp… fiche, i.e. no own site). If the site is
+   OK the prospect is OUT regardless, so the web search is **skipped** (`WebPresence.skipped`) to save
+   SerpAPI quota; otherwise `web_presence()` runs (SerpAPI or DuckDuckGo) and may discover a website the
+   provider didn't list, which is then checked too;
 4. **score** in `core/scoring.py` (`score_prospect`: 0 = invisible … 100 = very present; verdict depends
    on `RelevanceMode` STRICT/FLEXIBLE) — the pipeline stops once `max_results` non-OUT prospects are found.
    All analysed prospects (including OUT) are emitted via `on_prospect`; only non-OUT are returned.

@@ -6,6 +6,7 @@ from prospexia.core.models import Prospect, RelevanceMode, Verdict, WebsiteStatu
 _WEBSITE_POINTS = {
     WebsiteStatus.NONE: 0,
     WebsiteStatus.SOCIAL_ONLY: 8,
+    WebsiteStatus.THIRD_PARTY: 8,
     WebsiteStatus.DEAD: 10,
     WebsiteStatus.OBSOLETE: 28,
     WebsiteStatus.OK: 60,
@@ -23,11 +24,13 @@ def score_prospect(p: Prospect, mode: RelevanceMode) -> None:
     if n_soc:
         score += min(n_soc * 6, 18)
         reasons.append("Réseaux : " + ", ".join(sorted(p.presence.socials)))
-    else:
+    elif not p.presence.skipped:
         reasons.append("Aucun réseau social trouvé")
 
     hits = p.presence.search_hits
-    if not p.presence.search_engine:
+    if p.presence.skipped:
+        reasons.append("Recherche web ignorée (site déjà fonctionnel)")
+    elif not p.presence.search_engine:
         reasons.append("Visibilité web non évaluée (moteur indisponible)")
     elif hits == 0:
         reasons.append("Invisible sur les moteurs de recherche")
@@ -55,9 +58,11 @@ def score_prospect(p: Prospect, mode: RelevanceMode) -> None:
 
     st = p.website.status
     if mode is RelevanceMode.STRICT:
-        eligible = st in (WebsiteStatus.NONE, WebsiteStatus.SOCIAL_ONLY) and p.score <= 30
+        no_own_site = (WebsiteStatus.NONE, WebsiteStatus.SOCIAL_ONLY, WebsiteStatus.THIRD_PARTY)
+        eligible = st in no_own_site and p.score <= 30
         priority = st is WebsiteStatus.NONE and p.score <= 15
     else:
         eligible = st is not WebsiteStatus.OK and p.score <= 50
-        priority = st in (WebsiteStatus.NONE, WebsiteStatus.DEAD, WebsiteStatus.SOCIAL_ONLY) and p.score <= 25
+        priority = st in (WebsiteStatus.NONE, WebsiteStatus.DEAD, WebsiteStatus.SOCIAL_ONLY,
+                          WebsiteStatus.THIRD_PARTY) and p.score <= 25
     p.verdict = Verdict.PRIORITY if (eligible and priority) else Verdict.TARGET if eligible else Verdict.OUT

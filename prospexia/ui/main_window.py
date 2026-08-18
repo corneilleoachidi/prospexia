@@ -293,7 +293,7 @@ class MainWindow(QMainWindow):
             self.results.append(p)
             self.card_found.set(len(self.results))
             self.card_priority.set(sum(1 for r in self.results if r.verdict is Verdict.PRIORITY))
-            self.card_nosite.set(sum(1 for r in self.results if r.website.status in (WebsiteStatus.NONE, WebsiteStatus.SOCIAL_ONLY)))
+            self.card_nosite.set(sum(1 for r in self.results if r.website.status in (WebsiteStatus.NONE, WebsiteStatus.SOCIAL_ONLY, WebsiteStatus.THIRD_PARTY)))
             self.card_obsolete.set(sum(1 for r in self.results if r.website.status in (WebsiteStatus.OBSOLETE, WebsiteStatus.DEAD)))
         self._update_count()
 

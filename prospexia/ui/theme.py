@@ -118,4 +118,4 @@ QLabel#Link {{ color: {ACCENT_2}; }}
 """
 
 VERDICT_COLORS = {"priority": SUCCESS, "target": WARN, "out": "#6b7190"}
-STATUS_COLORS = {"none": DANGER, "dead": DANGER, "social": WARN, "obsolete": WARN, "ok": SUCCESS}
+STATUS_COLORS = {"none": DANGER, "dead": DANGER, "social": WARN, "platform": WARN, "obsolete": WARN, "ok": SUCCESS}

@@ -27,6 +27,21 @@ DIRECTORY_DOMAINS = (
     "thefork", "lafourchette", "doctolib", "ubereats", "deliveroo", "booking.com", "airbnb",
     "mappy", "waze", "google.", "bing.com", "apple.com/maps",
 )
+# Plateformes où l'entreprise n'a qu'une fiche (pas de site propre)
+PLATFORM_DOMAINS = (
+    "planity.com", "booksy.com", "treatwell", "lsrdv.com", "kiute.com", "flexybeauty", "wa.me",
+    "whatsapp.com", "sites.google.com", "linktr.ee", "business.site", "solocal.com", "doctolib",
+    "thefork", "lafourchette", "ubereats", "deliveroo", "justeat", "zenchef", "resto.fr",
+    "yelp.", "tripadvisor", "pagesjaunes", "yellowpages", "gelbeseiten", "paginegialle",
+    "paginasamarillas", "goudengids", "local.ch", "hotfrog", "cylex", "kompass", "europages",
+    "societe.com", "pappers", "infogreffe", "annuaire", "mappy", "waze", "goo.gl", "g.page",
+    "maps.app.goo.gl", "calendly.com", "shopify.com/", "amazon.", "leboncoin", "vinted", "etsy.com",
+)
+# Hébergeurs gratuits (site « amateur » — signe de faible investissement web)
+FREE_HOSTING = ("wixsite.com", "jimdosite.com", "jimdofree.com", "webnode.", "e-monsite.com",
+                "blogspot.", "wordpress.com", "weebly.com", "site123.me", "webself.net", "free.fr",
+                "pagesperso-orange.fr", "sitew.com", "wix.com/", "godaddysites.com", "carrd.co")
+
 _UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
        "(KHTML, like Gecko) Chrome/124.0 Safari/537.36")
 
@@ -37,6 +52,11 @@ def _domain(url: str) -> str:
     except ValueError:
         return ""
     return host.removeprefix("www.")
+
+
+def _is_platform(url: str) -> bool:
+    d = _domain(url)
+    return bool(d) and any(x in d for x in PLATFORM_DOMAINS)
 
 
 def _social_of(url: str) -> str | None:
@@ -59,6 +79,11 @@ async def check_website(client: httpx.AsyncClient, url: str) -> WebsiteCheck:
         chk.final_url = url
         chk.issues.append(f"Le « site » est une page {_social_of(url)}")
         return chk
+    if _is_platform(url):
+        chk.status = WebsiteStatus.THIRD_PARTY
+        chk.final_url = url
+        chk.issues.append(f"Le « site » est une fiche {_domain(url)} (pas de site propre)")
+        return chk
     if "://" not in url:
         url = "http://" + url
     try:
@@ -77,6 +102,10 @@ async def check_website(client: httpx.AsyncClient, url: str) -> WebsiteCheck:
     if _social_of(chk.final_url):
         chk.status = WebsiteStatus.SOCIAL_ONLY
         chk.issues.append("Redirige vers un réseau social")
+        return chk
+    if _is_platform(chk.final_url):
+        chk.status = WebsiteStatus.THIRD_PARTY
+        chk.issues.append(f"Redirige vers {_domain(chk.final_url)} (pas de site propre)")
         return chk
 
     html = resp.text[:400_000] if "text/html" in resp.headers.get("content-type", "") else ""
@@ -98,6 +127,8 @@ async def check_website(client: httpx.AsyncClient, url: str) -> WebsiteCheck:
         chk.issues.append(f"Copyright {chk.copyright_year}"); obsolete_points += 2
     if html and len(html) < 1500:
         chk.issues.append("Page quasi vide"); obsolete_points += 2
+    if any(x in _domain(chk.final_url) for x in FREE_HOSTING):
+        chk.issues.append("Hébergement gratuit / sous-domaine"); obsolete_points += 2
     for marker, label in (
         ("en construction", "En construction"), ("under construction", "En construction"),
         ("coming soon", "Coming soon"), ("site en cours de création", "En construction"),
@@ -134,7 +165,7 @@ async def web_presence(client: httpx.AsyncClient, company: Company, country: Cou
         pres.search_engine = ""
         return pres
     except Exception as exc:  # noqa: BLE001 — la recherche ne doit jamais bloquer le pipeline
-        log.warning("Recherche web échouée pour %s: %s", company.name, exc)
+        log.warning("Recherche web échouée pour %s: %s %s", company.name, type(exc).__name__, exc)
         pres.search_engine = ""
         return pres
 
@@ -153,7 +184,8 @@ async def web_presence(client: httpx.AsyncClient, company: Company, country: Cou
             continue
         if own and (d == own or d.endswith("." + own)):
             pres.own_domain_in_results = True
-        elif not own and not pres.discovered_website and _domain_matches(d, name_tokens):
+        elif (not own and not pres.discovered_website and not _is_platform(link)
+              and _domain_matches(d, name_tokens)):
             pres.discovered_website = link
     pres.search_hits = len(links)
     return pres

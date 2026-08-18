@@ -1,4 +1,12 @@
-from prospexia.core.models import Company, Prospect, RelevanceMode, Verdict, WebPresence, WebsiteCheck, WebsiteStatus
+from prospexia.core.models import (
+    Company,
+    Prospect,
+    RelevanceMode,
+    Verdict,
+    WebPresence,
+    WebsiteCheck,
+    WebsiteStatus,
+)
 from prospexia.core.scoring import score_prospect
 
 
@@ -52,3 +60,26 @@ def test_unavailable_engine_is_flagged_not_invisible():
     score_prospect(p, RelevanceMode.STRICT)
     assert any("non évaluée" in r for r in p.reasons)
     assert not any("Invisible" in r for r in p.reasons)
+
+
+def test_third_party_platform_is_target_in_strict_and_priority_in_flexible():
+    p = _p(WebsiteStatus.THIRD_PARTY, socials={"instagram": "x"}, hits=5, reviews=10)
+    score_prospect(p, RelevanceMode.STRICT)
+    assert p.verdict is Verdict.TARGET
+    assert p.opportunity == "Création de site web"
+    busy = _p(WebsiteStatus.THIRD_PARTY, socials={"instagram": "x"}, hits=5, reviews=200)
+    score_prospect(busy, RelevanceMode.STRICT)
+    assert busy.verdict is Verdict.OUT      # présence trop forte pour le mode Strict
+    score_prospect(busy, RelevanceMode.FLEXIBLE)
+    assert busy.verdict is Verdict.TARGET
+    p2 = _p(WebsiteStatus.THIRD_PARTY, hits=2)
+    score_prospect(p2, RelevanceMode.FLEXIBLE)
+    assert p2.verdict is Verdict.PRIORITY
+
+
+def test_skipped_search_reason():
+    p = _p(WebsiteStatus.OK, engine="")
+    p.presence.skipped = True
+    score_prospect(p, RelevanceMode.FLEXIBLE)
+    assert p.verdict is Verdict.OUT
+    assert any("ignorée" in r for r in p.reasons)
