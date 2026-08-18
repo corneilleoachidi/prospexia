@@ -19,6 +19,9 @@ class Settings:
     export_dir: str = field(default_factory=lambda: str(Path(user_documents_dir()) / APP_NAME))
     concurrency: int = 8           # nombre de vérifications web simultanées
     request_timeout: float = 12.0  # secondes
+    use_cache: bool = True         # réutiliser les résultats récents (économie de quotas API)
+    cache_ttl_days: int = 30
+    enrich_legal: bool = True      # interroger le registre officiel pour les prospects retenus
     last_country: str = "FR"
     last_sectors: list[str] = field(default_factory=list)
     last_max_results: int = 20

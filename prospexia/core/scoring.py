@@ -53,6 +53,8 @@ def score_prospect(p: Prospect, mode: RelevanceMode) -> None:
     elif rc >= 5:
         score += 3
 
+    if p.from_cache and p.cached_at:
+        reasons.append(f"Analyse en cache du {p.cached_at}")
     p.score = max(0, min(100, score))
     p.reasons = reasons
 

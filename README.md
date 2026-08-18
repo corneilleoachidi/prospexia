@@ -15,7 +15,13 @@ moteurs) et classe les prospects par priorité.
   obsolète ou HS + faible présence)
 - Score de présence 0-100, verdict (Prioritaire / Cible / Hors cible), diagnostic détaillé, opportunité
   suggérée (création de site, refonte + SEO, SEO)
-- Résultats en direct pendant l'analyse, filtre, fiche détaillée, **export CSV / Excel**
+- **Registre officiel** : pour la France, SIREN/SIRET, forme juridique, NAF, dirigeants, effectif, date de
+  création, n° TVA via l'API publique gratuite « Recherche d'entreprises » ; pour les autres pays, lien de
+  recherche pré-rempli vers le registre national
+- **Cache 30 jours** (SQLite) des recherches fournisseurs et des analyses : une recherche identique ou
+  partiellement identique relancée ne consomme aucun crédit API (paramétrable, vidable depuis ⚙)
+- Résultats en direct pendant l'analyse, filtre, fiche détaillée, **export CSV / Excel / PDF** (rapport
+  prêt à partager sur WhatsApp ou par e-mail, avec les données légales)
 
 ## Sources de données
 
@@ -25,6 +31,7 @@ moteurs) et classe les prospects par priorité.
 | Visibilité web & réseaux | SerpAPI (Google) | DuckDuckGo (best-effort, souvent limité) |
 | Traduction des secteurs | — | catalogue intégré, puis Google Translate via `deep-translator` |
 | État du site web | requêtes HTTP directes (HTTPS, mobile, copyright, pages « en construction »…) | idem |
+| Données légales | — | France : recherche-entreprises.api.gouv.fr (gratuit) ; ailleurs : lien vers le registre |
 
 Les clés se configurent dans l'application (⚙ en bas de la barre latérale) et sont stockées dans le
 dossier de configuration utilisateur (`~/.config/Prospexia/config.json` sous Linux).

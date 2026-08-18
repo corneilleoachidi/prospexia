@@ -8,7 +8,7 @@ from PySide6.QtWidgets import QHeaderView, QStyledItemDelegate, QTableView
 from prospexia.core.models import Prospect, Verdict
 from prospexia.ui import theme
 
-COLS = ["Entreprise", "Secteur", "Ville", "Téléphone", "Site web", "État du site", "Score", "Verdict", "Opportunité"]
+COLS = ["Entreprise", "Secteur", "Ville", "Téléphone", "Site web", "État du site", "Score", "Verdict", "Opportunité", "Identifiant"]
 COL_SCORE, COL_VERDICT, COL_STATUS = 6, 7, 5
 
 
@@ -44,6 +44,7 @@ class ProspectModel(QAbstractTableModel):
             return [
                 p.company.name, p.company.sector, p.company.city, p.company.phone,
                 p.company.website or "—", p.website.status.label, p.score, p.verdict.label, p.opportunity,
+                (p.legal.identifier if p.legal and p.legal.identifier else "—"),
             ][c]
         if role == Qt.ItemDataRole.UserRole:
             return p
@@ -143,7 +144,7 @@ class ResultsTable(QTableView):
         h.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
         h.setStretchLastSection(True)
         h.setHighlightSections(False)
-        for i, w in enumerate([200, 130, 100, 125, 170, 110, 110, 100, 150]):
+        for i, w in enumerate([200, 125, 100, 120, 160, 110, 105, 95, 140, 110]):
             self.setColumnWidth(i, w)
         self.sortByColumn(COL_SCORE, Qt.SortOrder.AscendingOrder)
 

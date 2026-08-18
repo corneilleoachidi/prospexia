@@ -40,3 +40,26 @@ def test_exports(tmp_path: Path):
     assert "Chez Marcel" in csv_path.read_text(encoding="utf-8-sig")
     xlsx_path = export_xlsx([p], tmp_path / "x.xlsx")
     assert xlsx_path.stat().st_size > 0
+
+
+def test_pdf_export(tmp_path: Path):
+    from PySide6.QtWidgets import QApplication
+    QApplication.instance() or QApplication([])
+    from prospexia.core.export import build_pdf_html, export_pdf
+    from prospexia.core.models import LegalInfo
+    p = Prospect(company=Company(name="Chez Marcel <b>", city="Lyon", sector="Restaurant", phone="04 00"))
+    p.website = WebsiteCheck(status=WebsiteStatus.NONE)
+    p.legal = LegalInfo(registry="Recherche d'entreprises", identifier="123456789", identifier_label="SIREN",
+                        legal_form="SARL", managers=["Marcel DUPONT (Gérant)"], matched=True, vat_number="FR00123456789")
+    html = build_pdf_html([p], "France — Restaurant", "Mode Strict")
+    assert "Chez Marcel &lt;b&gt;" in html and "SIREN" in html and "Marcel DUPONT" in html
+    out = export_pdf([p], tmp_path / "r.pdf", "France — Restaurant", "Mode Strict")
+    assert out.exists() and out.read_bytes()[:5] == b"%PDF-"
+
+
+def test_legal_columns_in_csv(tmp_path: Path):
+    from prospexia.core.models import LegalInfo
+    p = Prospect(company=Company(name="X"))
+    p.legal = LegalInfo(identifier="123456789", identifier_label="SIREN", matched=True)
+    txt = export_csv([p], tmp_path / "x.csv").read_text(encoding="utf-8-sig")
+    assert "SIREN 123456789" in txt and "auto" in txt

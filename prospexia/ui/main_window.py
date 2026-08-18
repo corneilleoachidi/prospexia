@@ -25,7 +25,7 @@ from PySide6.QtWidgets import (
 )
 
 from prospexia.config import Settings
-from prospexia.core.export import export_csv, export_xlsx
+from prospexia.core.export import export_csv, export_pdf, export_xlsx
 from prospexia.core.models import (
     ProgressEvent,
     Prospect,
@@ -149,11 +149,13 @@ class MainWindow(QMainWindow):
         tcol.addWidget(self.title); tcol.addWidget(self.subtitle)
         head.addLayout(tcol, 1)
         self.btn_csv = QPushButton("⤓  CSV"); self.btn_xlsx = QPushButton("⤓  Excel")
-        for b in (self.btn_csv, self.btn_xlsx):
+        self.btn_pdf = QPushButton("⤓  PDF"); self.btn_pdf.setToolTip("Rapport PDF prêt à partager (WhatsApp, e-mail…)")
+        for b in (self.btn_csv, self.btn_xlsx, self.btn_pdf):
             b.setEnabled(False); b.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_csv.clicked.connect(lambda: self._export("csv"))
         self.btn_xlsx.clicked.connect(lambda: self._export("xlsx"))
-        head.addWidget(self.btn_csv); head.addWidget(self.btn_xlsx)
+        self.btn_pdf.clicked.connect(lambda: self._export("pdf"))
+        head.addWidget(self.btn_csv); head.addWidget(self.btn_xlsx); head.addWidget(self.btn_pdf)
         lay.addLayout(head)
 
         stats = QHBoxLayout(); stats.setSpacing(12)
@@ -253,7 +255,7 @@ class MainWindow(QMainWindow):
         self.results.clear(); self.table.model_.clear()
         for c in (self.card_analyzed, self.card_found, self.card_priority, self.card_nosite, self.card_obsolete):
             c.set(0)
-        self.btn_csv.setEnabled(False); self.btn_xlsx.setEnabled(False)
+        self.btn_csv.setEnabled(False); self.btn_xlsx.setEnabled(False); self.btn_pdf.setEnabled(False)
         c = COUNTRY_BY_CODE[req.country_code]
         self.title.setText(f"{c.flag} {c.name_fr} — {', '.join(self.sectors.labels())}")
         self.subtitle.setText(f"Mode {req.mode.label} · jusqu'à {req.max_results} prospects")
@@ -316,7 +318,7 @@ class MainWindow(QMainWindow):
         self.stop.hide(); self.stop.setEnabled(True); self.launch.show()
         self._set_form_enabled(True); self._update_launch_state()
         has = bool(self.results)
-        self.btn_csv.setEnabled(has); self.btn_xlsx.setEnabled(has)
+        self.btn_csv.setEnabled(has); self.btn_xlsx.setEnabled(has); self.btn_pdf.setEnabled(has)
 
     def _update_count(self) -> None:
         self.count_label.setText(f"{self.table.proxy.rowCount()} ligne(s) affichée(s)")
@@ -335,7 +337,12 @@ class MainWindow(QMainWindow):
         stamp = dt.datetime.now().strftime("%Y%m%d-%H%M")
         path = Path(self.settings.export_dir) / f"prospexia_{c.code}_{stamp}.{kind}"
         try:
-            path = export_csv(rows, path) if kind == "csv" else export_xlsx(rows, path)
+            if kind == "csv":
+                path = export_csv(rows, path)
+            elif kind == "xlsx":
+                path = export_xlsx(rows, path)
+            else:
+                path = export_pdf(rows, path, self.title.text(), self.subtitle.text())
         except OSError as exc:
             QMessageBox.critical(self, "Export impossible", str(exc)); return
         self.status.setText(f"Export : {path}")

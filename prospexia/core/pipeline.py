@@ -2,12 +2,14 @@
 from __future__ import annotations
 
 import asyncio
+import datetime as dt
 import logging
 from collections.abc import Callable
 
 import httpx
 
 from prospexia.config import Settings
+from prospexia.core.cache import ResultCache
 from prospexia.core.models import (
     Company,
     ProgressEvent,
@@ -24,6 +26,7 @@ from prospexia.core.providers import (
     OSMProvider,
     ProviderError,
 )
+from prospexia.core.registry import registry_for
 from prospexia.core.scoring import score_prospect
 from prospexia.core.translate import sector_term, translate_text
 from prospexia.data.countries import COUNTRY_BY_CODE
@@ -48,6 +51,9 @@ class Pipeline:
         self.cancel_event = asyncio.Event()
         self.warnings: list[str] = []
         self.analyzed = 0
+        self.cache_hits = 0
+        self.cache: ResultCache | None = (
+            ResultCache(ttl_days=settings.cache_ttl_days) if settings.use_cache else None)
 
     def cancel(self) -> None:
         self.cancel_event.set()
@@ -82,6 +88,8 @@ class Pipeline:
             if self.settings.has_google:
                 providers.append(GooglePlacesProvider(client, self.settings.google_places_api_key))
             providers.append(OSMProvider(client))
+
+            registry = registry_for(country, client) if self.settings.enrich_legal else None
 
             # 3) plan de requêtes : pays entier d'abord, puis ville par ville
             locations: list[str | None] = [None, *country.cities]
@@ -122,20 +130,31 @@ class Pipeline:
                     async with sem:
                         self._check_cancel()
                         p = Prospect(company=c)
-                        p.website = await check_website(client, c.website)
-                        if p.website.status is WebsiteStatus.OK:
-                            # Site fonctionnel => hors cible quoi qu'il arrive : on économise
-                            # une recherche web (quota SerpAPI) et on passe au suivant.
-                            p.presence = WebPresence(skipped=True)
+                        cached = self.cache.get_analysis(c) if self.cache else None
+                        if cached:
+                            ts, p.website, p.presence, p.legal = cached
+                            p.from_cache = True
+                            p.cached_at = dt.datetime.fromtimestamp(ts).strftime("%d/%m/%Y")
+                            self.cache_hits += 1
                         else:
-                            p.presence = await web_presence(client, c, country,
-                                                            self.settings.serpapi_api_key)
-                            if not c.website and p.presence.discovered_website:
-                                c.website = p.presence.discovered_website
-                                p.presence.own_domain_in_results = True
-                                p.website = await check_website(client, c.website)
-                                p.website.issues.insert(0, "Site trouvé via la recherche web")
+                            p.website = await check_website(client, c.website)
+                            if p.website.status is WebsiteStatus.OK:
+                                # Site fonctionnel => hors cible quoi qu'il arrive : on économise
+                                # une recherche web (quota SerpAPI) et on passe au suivant.
+                                p.presence = WebPresence(skipped=True)
+                            else:
+                                p.presence = await web_presence(client, c, country,
+                                                                self.settings.serpapi_api_key)
+                                if not c.website and p.presence.discovered_website:
+                                    c.website = p.presence.discovered_website
+                                    p.presence.own_domain_in_results = True
+                                    p.website = await check_website(client, c.website)
+                                    p.website.issues.insert(0, "Site trouvé via la recherche web")
                         score_prospect(p, req.mode)
+                        if p.verdict is not Verdict.OUT and registry and p.legal is None:
+                            p.legal = await registry.lookup(c)
+                        if self.cache and (not cached or (p.legal and not cached[3])):
+                            self.cache.put_analysis(p)
                         return p
 
                 tasks = [asyncio.create_task(analyze(c)) for c in companies]
@@ -158,16 +177,25 @@ class Pipeline:
                     for t in tasks:
                         t.cancel()
 
+            cache_note = f" · {self.cache_hits} depuis le cache" if self.cache_hits else ""
             self.on_progress(ProgressEvent(
-                "done", f"Terminé : {found} prospect(s) retenu(s) sur {self.analyzed} analysés",
+                "done", f"Terminé : {found} prospect(s) retenu(s) sur {self.analyzed} analysés{cache_note}",
                 current=1, total=1, found=found))
             return results
 
     async def _search(self, providers: list[CompanyProvider], term: str, country, loc, limit: int
                       ) -> list[Company]:
         for prov in list(providers):
+            key = ResultCache.query_key(prov.name, term, country.code, loc, limit)
+            if self.cache:
+                hit = self.cache.get_query(key)
+                if hit is not None:
+                    return hit
             try:
-                return await prov.search(term, country, loc, limit)
+                found = await prov.search(term, country, loc, limit)
+                if self.cache:
+                    self.cache.put_query(key, found)
+                return found
             except ProviderError as exc:
                 msg = f"{exc} — bascule sur OpenStreetMap"
                 if msg not in self.warnings:

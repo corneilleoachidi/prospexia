@@ -101,13 +101,39 @@ class WebPresence:
 
 
 @dataclass
+class LegalInfo:
+    """Informations légales issues d'un registre officiel (ou lien de recherche si pas d'API)."""
+    registry: str = ""                    # ex. "Recherche d'entreprises (api.gouv.fr)"
+    identifier: str = ""                  # identifiant national principal (SIREN, CRN, KBO…)
+    identifier_label: str = ""            # libellé de l'identifiant ("SIREN")
+    secondary_id: str = ""                # ex. SIRET du siège
+    secondary_label: str = ""
+    legal_name: str = ""                  # dénomination officielle
+    legal_form: str = ""                  # forme juridique
+    activity_code: str = ""               # code NAF/APE ou équivalent
+    activity_label: str = ""
+    creation_date: str = ""               # AAAA-MM-JJ
+    headcount: str = ""                   # tranche d'effectif
+    status: str = ""                      # "Active" / "Cessée"
+    address: str = ""                     # adresse du siège
+    managers: list[str] = field(default_factory=list)   # "Prénom NOM (qualité)"
+    vat_number: str = ""
+    source_url: str = ""                  # fiche officielle ou lien de recherche
+    confidence: float = 0.0               # 0-1 : qualité de l'appariement nom/adresse
+    matched: bool = False                 # True si une fiche a été trouvée automatiquement
+
+
+@dataclass
 class Prospect:
     company: Company
     website: WebsiteCheck = field(default_factory=WebsiteCheck)
     presence: WebPresence = field(default_factory=WebPresence)
+    legal: LegalInfo | None = None
     score: int = 0                        # 0 (invisible) -> 100 (très présent)
     verdict: Verdict = Verdict.OUT
     reasons: list[str] = field(default_factory=list)
+    from_cache: bool = False
+    cached_at: str = ""                   # date lisible de l'analyse en cache
 
     @property
     def opportunity(self) -> str:
