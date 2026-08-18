@@ -89,3 +89,18 @@ async def test_search_failure_marks_engine_unavailable(status):
         pres = await web_presence(c, Company(name="X"), COUNTRY_BY_CODE["FR"], "key")
     assert pres.search_engine == ""
     assert pres.search_hits == 0
+
+
+async def test_osm_provider_parses_jsonv2_and_filters_streets():
+    from prospexia.core.providers.osm import OSMProvider
+    payload = [
+        {"category": "craft", "type": "plumber", "name": "Artisan Plombier", "display_name": "Artisan Plombier, Paris",
+         "lat": "48.8", "lon": "2.3", "osm_id": 1, "osm_type": "node",
+         "address": {"city": "Paris"}, "extratags": {"website": "https://ex.fr"}, "namedetails": {"name": "Artisan Plombier"}},
+        {"category": "highway", "type": "residential", "name": "Chemin du Plombier", "display_name": "x", "osm_id": 2},
+        {"category": "craft", "type": "plumber", "name": "Plombier", "display_name": "x", "osm_id": 3},
+    ]
+    async with _client(lambda r: httpx.Response(200, json=payload)) as c:
+        res = await OSMProvider(c).search("Plombier", COUNTRY_BY_CODE["FR"], "Paris", 20)
+    assert [r.name for r in res] == ["Artisan Plombier"]
+    assert res[0].website == "https://ex.fr" and res[0].city == "Paris"

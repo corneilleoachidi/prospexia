@@ -41,7 +41,8 @@ class OSMProvider(CompanyProvider):
         out: list[Company] = []
         for item in resp.json():
             name = (item.get("namedetails") or {}).get("name") or item.get("name") or ""
-            if not name or item.get("class") not in _BUSINESS_CLASSES:
+            category = item.get("category") or item.get("class")
+            if not name or category not in _BUSINESS_CLASSES:
                 continue
             if name.strip().lower() == term.strip().lower():
                 continue  # objet nommé d'après le type ("Plombier"), pas une vraie enseigne
