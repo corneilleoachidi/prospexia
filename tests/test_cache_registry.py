@@ -1,7 +1,14 @@
 import httpx
 
 from prospexia.core.cache import ResultCache
-from prospexia.core.models import Company, LegalInfo, Prospect, WebPresence, WebsiteCheck, WebsiteStatus
+from prospexia.core.models import (
+    Company,
+    LegalInfo,
+    Prospect,
+    WebPresence,
+    WebsiteCheck,
+    WebsiteStatus,
+)
 from prospexia.core.registry.base import name_similarity, normalize_name
 from prospexia.core.registry.france import FranceRegistry, vat_number
 from prospexia.core.registry.links import LinkOnlyRegistry

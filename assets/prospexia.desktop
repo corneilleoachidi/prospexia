@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Prospexia
+Comment=Prospection d'entreprises ayant besoin d'un site web ou de SEO
+Exec=__EXEC__
+Icon=__ICON__
+Terminal=false
+Categories=Office;Network;
+Keywords=prospection;seo;site web;entreprises;
+StartupWMClass=prospexia

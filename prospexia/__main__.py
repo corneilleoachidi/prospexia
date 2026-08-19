@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 import sys
+from pathlib import Path
 
 
 def main() -> int:
@@ -16,6 +17,11 @@ def main() -> int:
 
     app = QApplication(sys.argv)
     app.setApplicationName("Prospexia")
+    app.setDesktopFileName("prospexia")
+    icon_path = Path(__file__).resolve().parent.parent / "assets" / "prospexia.svg"
+    if icon_path.exists():
+        from PySide6.QtGui import QIcon
+        app.setWindowIcon(QIcon(str(icon_path)))
     app.setStyle("Fusion")
     pal = app.palette()
     pal.setColor(QPalette.ColorRole.Window, QColor(theme.BG))

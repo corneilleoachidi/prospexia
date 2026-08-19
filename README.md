@@ -45,6 +45,12 @@ uv sync --extra dev      # crée .venv et installe les dépendances
 uv run prospexia         # lance l'application
 ```
 
+### Lanceur dans le menu des applications (Linux)
+
+```bash
+scripts/install-desktop.sh   # ajoute « Prospexia » (icône incluse) au menu de l'utilisateur courant
+```
+
 ## Développement
 
 ```bash

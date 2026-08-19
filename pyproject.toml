@@ -1,6 +1,6 @@
 [project]
 name = "prospexia"
-version = "0.1.0"
+version = "1.0.0"
 description = "Prospection d'entreprises à faible présence en ligne (création de site web / SEO)"
 readme = "README.md"
 requires-python = ">=3.11"
